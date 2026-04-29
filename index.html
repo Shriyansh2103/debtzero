@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DebtZero — Free Debt Payoff Visualizer</title>
+<meta name="description" content="DebtZero is a free, no-signup debt payoff calculator. Compare Avalanche vs Snowball strategies, visualize your path to debt freedom, and run what-if scenarios — in 15 currencies.">
+<meta name="keywords" content="debt payoff calculator, avalanche method, snowball method, debt free, finance tool, debt tracker, interest calculator">
+<meta name="author" content="DebtZero">
+<meta property="og:title" content="DebtZero — Free Debt Payoff Visualizer">
+<meta property="og:description" content="Compare Avalanche vs Snowball strategies side-by-side. See exactly when each debt gets paid off, how much interest you'll save, and what happens if you put more money toward debt.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://placehold.co/1200x630/0a0a0f/c8ff00?text=DebtZero">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DebtZero — Free Debt Payoff Visualizer">
+<meta name="twitter:description" content="No signup. No ads. Just a fast, beautiful tool to help you get out of debt.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%230a0a0f'/><circle cx='50' cy='50' r='12' fill='%23c8ff00'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --surface3: #22222f;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --accent: #c8ff00;
+    --accent2: #00e5cc;
+    --accent3: #ff6b35;
+    --text: #f0efe8;
+    --text2: #8a8a9a;
+    --text3: #555566;
+    --danger: #ff4d6d;
+    --success: #00e5cc;
+    --font-display: 'Instrument Serif', serif;
+    --font-ui: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 12px;
+    --radius-lg: 20px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(200,255,0,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200,255,0,0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .logo-word {
+    font-family: var(--font-display);
+    font-size: 28px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-bottom: 4px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .currency-select {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .currency-select:hover, .currency-select:focus { border-color: var(--accent); }
+  .currency-select option { background: #1a1a24; }
+
+  .mode-badge {
+    display: flex;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .mode-btn {
+    padding: 8px 16px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text2);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .mode-btn.active {
+    background: var(--accent);
+    color: #0a0a0f;
+  }
+
+  /* HERO STATS */
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.2s;
+  }
+
+  .stat-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, var(--accent));
+    opacity: 0.6;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .stat-delta {
+    font-size: 12px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+    display: inline-block;
+  }
+
+  .delta-good { background: rgba(0,229,204,0.1); color: var(--success); }
+  .delta-bad { background: rgba(255,77,109,0.1); color: var(--danger); }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* SIDEBAR */
+  .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .panel-body { padding: 16px 20px; }
+
+  /* DEBTS LIST */
+  .debt-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .debt-item:hover { border-color: var(--border2); }
+
+  .debt-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .debt-name-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    width: 160px;
+  }
+
+  .debt-name-input::placeholder { color: var(--text3); }
+
+  .debt-priority {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--text3);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .debt-priority.pinned {
+    background: var(--accent3);
+    border-color: var(--accent3);
+    box-shadow: 0 0 8px rgba(255,107,53,0.5);
+  }
+
+  .debt-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .field-wrap {
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    transition: border-color 0.2s;
+  }
+
+  .field-wrap:focus-within { border-color: var(--accent); }
+
+  .field-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 3px;
+  }
+
+  .field-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--text);
+    width: 100%;
+  }
+
+  .field-input::-webkit-outer-spin-button,
+  .field-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .del-debt {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    transition: color 0.2s;
+    padding: 2px;
+  }
+
+  .del-debt:hover { color: var(--danger); }
+
+  .add-debt-btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px dashed var(--border2);
+    border-radius: var(--radius);
+    color: var(--text2);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .add-debt-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(200,255,0,0.04);
+  }
+
+  /* EXTRA PAYMENT SLIDER */
+  .slider-wrap {
+    margin: 8px 0 16px;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .slider-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .slider-val {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface3);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px rgba(200,255,0,0.5);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  /* STRATEGY TOGGLE */
+  .strategy-group {
+    display: flex;
+    gap: 10px;
+    margin: 4px 0 16px;
+  }
+
+  .strategy-card {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    background: var(--surface2);
+  }
+
+  .strategy-card.active-avalanche {
+    border-color: #378ADD;
+    background: rgba(55,138,221,0.1);
+  }
+
+  .strategy-card.active-snowball {
+    border-color: #1D9E75;
+    background: rgba(29,158,117,0.1);
+  }
+
+  .strategy-card.active-custom {
+    border-color: var(--accent3);
+    background: rgba(255,107,53,0.1);
+  }
+
+  .strategy-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  .strategy-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .strategy-card.active-avalanche .strategy-name { color: #378ADD; }
+  .strategy-card.active-snowball .strategy-name { color: #1D9E75; }
+  .strategy-card.active-custom .strategy-name { color: var(--accent3); }
+
+  /* CHART AREA */
+  .chart-area { display: flex; flex-direction: column; gap: 20px; }
+
+  .chart-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .ctab {
+    padding: 8px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text2);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .ctab.active {
+    background: var(--accent);
+    color: #0a0a0f;
+    border-color: var(--accent);
+  }
+
+  .chart-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+  }
+
+  .chart-legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text2);
+    font-weight: 600;
+  }
+
+  .legend-swatch {
+    width: 24px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .chart-container {
+    position: relative;
+    width: 100%;
+    height: 280px;
+  }
+
+  /* PAYOFF TIMELINE */
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .timeline-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color 0.2s;
+  }
+
+  .timeline-item:hover { border-color: var(--border2); }
+
+  .timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .timeline-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .timeline-date {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .timeline-amount {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  /* WHAT IF SIMULATOR */
+  .whatif-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .whatif-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .whatif-card:hover {
+    border-color: var(--accent);
+    background: rgba(200,255,0,0.04);
+  }
+
+  .whatif-trigger {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+
+  .whatif-result {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .whatif-label {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 3px;
+  }
+
+  /* DEBT THERMOMETER */
+  .thermo-wrap {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin: 4px 0;
+  }
+
+  .thermo-bar-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .thermo-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .thermo-name {
+    font-size: 11px;
+    color: var(--text2);
+    min-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .thermo-track {
+    flex: 1;
+    height: 8px;
+    background: var(--surface3);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .thermo-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+
+  .thermo-pct {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text3);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* CONFETTI (debt free celebration) */
+  .confetti-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    display: none;
+  }
+
+  /* SNOWFLAKE toggle for light mode */
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* PROGRESS RING */
+  .ring-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0 8px;
+  }
+
+  .ring-svg { transform: rotate(-90deg); }
+
+  .ring-bg { fill: none; stroke: var(--surface3); stroke-width: 8; }
+  .ring-fg { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+
+  .ring-text-wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ring-pct {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .ring-sublabel {
+    font-size: 11px;
+    color: var(--text2);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* Animations */
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel { animation: fadeSlideIn 0.4s ease both; }
+
+  .panel:nth-child(2) { animation-delay: 0.05s; }
+  .panel:nth-child(3) { animation-delay: 0.1s; }
+  .panel:nth-child(4) { animation-delay: 0.15s; }
+
+  .hero-stats .stat-card:nth-child(1) { animation: fadeSlideIn 0.4s 0.0s ease both; }
+  .hero-stats .stat-card:nth-child(2) { animation: fadeSlideIn 0.4s 0.07s ease both; }
+  .hero-stats .stat-card:nth-child(3) { animation: fadeSlideIn 0.4s 0.14s ease both; }
+  .hero-stats .stat-card:nth-child(4) { animation: fadeSlideIn 0.4s 0.21s ease both; }
+
+  /* Free badge */
+  .free-banner {
+    background: linear-gradient(90deg, rgba(200,255,0,0.1), rgba(0,229,204,0.1));
+    border: 1px solid rgba(200,255,0,0.2);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--accent);
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-word">DebtZero</span>
+      <div class="logo-dot"></div>
+    </div>
+    <div class="header-right">
+      <select class="currency-select" id="currencySelect" onchange="setCurrency(this.value)">
+        <option value="USD">$ USD</option>
+        <option value="EUR">€ EUR</option>
+        <option value="GBP">£ GBP</option>
+        <option value="JPY">¥ JPY</option>
+        <option value="INR">₹ INR</option>
+        <option value="CAD">C$ CAD</option>
+        <option value="AUD">A$ AUD</option>
+        <option value="BRL">R$ BRL</option>
+        <option value="MXN">MX$ MXN</option>
+        <option value="CHF">Fr CHF</option>
+        <option value="KRW">₩ KRW</option>
+        <option value="CNY">¥ CNY</option>
+        <option value="AED">د.إ AED</option>
+        <option value="NGN">₦ NGN</option>
+        <option value="ZAR">R ZAR</option>
+      </select>
+      <div class="mode-badge">
+        <button class="mode-btn active" id="btnAvalanche" onclick="setStrategy('avalanche')">Avalanche</button>
+        <button class="mode-btn" id="btnSnowball" onclick="setStrategy('snowball')">Snowball</button>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">☀</button>
+    </div>
+  </header>
+
+  <!-- HERO DESCRIPTION -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:32px;margin-bottom:40px;flex-wrap:wrap">
+    <div style="max-width:560px">
+      <h1 style="font-family:var(--font-display);font-size:42px;line-height:1.1;color:var(--text);margin-bottom:12px;letter-spacing:-0.5px">
+        Get out of debt,<br><em style="color:var(--accent);font-style:italic">faster.</em>
+      </h1>
+      <p style="font-size:15px;color:var(--text2);line-height:1.7;max-width:460px">
+        Enter your debts, pick a strategy, and watch your debt-free date appear in real time.
+        DebtZero compares <strong style="color:var(--text);font-weight:600">Avalanche</strong> (lowest total interest) vs
+        <strong style="color:var(--text);font-weight:600">Snowball</strong> (fastest psychological wins) — 
+        side by side, in your currency, with zero signup required.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:20px">
+        <span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--text2);letter-spacing:0.04em">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--accent)"></span> No signup
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--text2);letter-spacing:0.04em">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--accent2)"></span> 15 currencies
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--text2);letter-spacing:0.04em">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--accent3)"></span> No ads, ever
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--text2);letter-spacing:0.04em">
+          <span style="width:7px;height:7px;border-radius:50%;background:#9B72CF"></span> 100% private
+        </span>
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;min-width:220px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:14px">How it works</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="min-width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0a0a0f;flex-shrink:0">1</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Add your debts</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Balance, APR, minimum payment</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="min-width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0a0a0f;flex-shrink:0">2</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">Set extra payment</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Any amount above minimums</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="min-width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#0a0a0f;flex-shrink:0">3</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">See your debt-free date</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Month-by-month, to the day</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO STATS -->
+  <div class="hero-stats">
+    <div class="stat-card" style="--accent-color: var(--danger);">
+      <div class="stat-label">Total debt</div>
+      <div class="stat-value" id="heroTotal">$0</div>
+      <div class="stat-sub">across <span id="heroCount">0</span> debts</div>
+    </div>
+    <div class="stat-card" style="--accent-color: #378ADD;">
+      <div class="stat-label">Months to free</div>
+      <div class="stat-value" id="heroMonths">—</div>
+      <div class="stat-sub" id="heroDate">Debt-free date</div>
+    </div>
+    <div class="stat-card" style="--accent-color: var(--accent2);">
+      <div class="stat-label">Total interest</div>
+      <div class="stat-value" id="heroInterest">$0</div>
+      <div class="stat-delta delta-good" id="heroDelta" style="display:none"></div>
+    </div>
+    <div class="stat-card" style="--accent-color: var(--accent);">
+      <div class="stat-label">Monthly payment</div>
+      <div class="stat-value" id="heroMonthly">$0</div>
+      <div class="stat-sub">min + extra</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- DEBTS -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Your debts</span>
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text3)" id="debtCountBadge">3 items</span>
+        </div>
+        <div class="panel-body">
+          <div id="debtsList"></div>
+          <button class="add-debt-btn" onclick="addDebt()">+ Add debt</button>
+        </div>
+      </div>
+
+      <!-- EXTRA PAYMENT -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Extra payment</span>
+        </div>
+        <div class="panel-body">
+          <div class="slider-wrap">
+            <div class="slider-row">
+              <span class="slider-label">Monthly extra</span>
+              <span class="slider-val" id="extraVal">$200</span>
+            </div>
+            <input type="range" id="extraSlider" min="0" max="2000" step="10" value="200" oninput="onExtraChange(this.value)">
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <button onclick="setExtra(0)" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">Min only</button>
+            <button onclick="setExtra(100)" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">+100</button>
+            <button onclick="setExtra(500)" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">+500</button>
+            <button onclick="setExtra(1000)" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:var(--font-ui);font-size:12px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">+1000</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEBT BREAKDOWN BARS -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Debt breakdown</span>
+        </div>
+        <div class="panel-body">
+          <div id="thermoList"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="chart-area">
+
+      <!-- CHART TABS -->
+      <div class="chart-tabs">
+        <button class="ctab active" onclick="switchChart('balance',this)">Balance over time</button>
+        <button class="ctab" onclick="switchChart('interest',this)">Cumulative interest</button>
+        <button class="ctab" onclick="switchChart('monthly',this)">Monthly breakdown</button>
+      </div>
+
+      <!-- CHART -->
+      <div class="chart-panel">
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#378ADD"></div>
+            <span>Avalanche</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#1D9E75;border-top:2px dashed #1D9E75;height:0;margin:6px 0"></div>
+            <span>Snowball</span>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="mainChart" role="img" aria-label="Debt payoff comparison chart"></canvas>
+        </div>
+      </div>
+
+      <!-- PROGRESS RING + WHAT IF -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+        <!-- PROGRESS RING -->
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Payoff progress</span></div>
+          <div class="panel-body" style="display:flex;flex-direction:column;align-items:center">
+            <div style="position:relative;width:140px;height:140px">
+              <svg class="ring-svg" width="140" height="140" viewBox="0 0 140 140">
+                <circle class="ring-bg" cx="70" cy="70" r="56"/>
+                <circle class="ring-fg" id="ringFg" cx="70" cy="70" r="56" stroke-dasharray="351.86" stroke-dashoffset="351.86"/>
+              </svg>
+              <div class="ring-text-wrap">
+                <div class="ring-pct" id="ringPct">0%</div>
+                <div class="ring-sublabel">paid off</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;text-align:center">
+              <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2)" id="ringPaidLabel">$0 paid</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:3px" id="ringRemainingLabel">$0 remaining</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- WHAT IF -->
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">What if?</span></div>
+          <div class="panel-body">
+            <div class="whatif-grid">
+              <div class="whatif-card" title="If you double your extra payment">
+                <div class="whatif-trigger">2× extra</div>
+                <div class="whatif-result" id="wi2x">—</div>
+                <div class="whatif-label">months saved</div>
+              </div>
+              <div class="whatif-card" title="If you refinance all at 5% APR">
+                <div class="whatif-trigger">Refi 5%</div>
+                <div class="whatif-result" id="wiRefi">—</div>
+                <div class="whatif-label">interest saved</div>
+              </div>
+              <div class="whatif-card" title="If you skip one month">
+                <div class="whatif-trigger">Skip 1 mo</div>
+                <div class="whatif-result" id="wiSkip">—</div>
+                <div class="whatif-label">extra cost</div>
+              </div>
+              <div class="whatif-card" title="Pay off in exactly 12 months">
+                <div class="whatif-trigger">12-mo blitz</div>
+                <div class="whatif-result" id="wi12">—</div>
+                <div class="whatif-label">needed/mo</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAYOFF TIMELINE -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Payoff order (avalanche)</span>
+          <span style="font-size:11px;color:var(--text3);font-weight:600;letter-spacing:0.05em">ESTIMATED DATES</span>
+        </div>
+        <div class="panel-body">
+          <div id="timelineList"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const CURRENCIES = {
+  USD: { symbol: '$', name: 'USD', locale: 'en-US' },
+  EUR: { symbol: '€', name: 'EUR', locale: 'de-DE' },
+  GBP: { symbol: '£', name: 'GBP', locale: 'en-GB' },
+  JPY: { symbol: '¥', name: 'JPY', locale: 'ja-JP', decimals: 0 },
+  INR: { symbol: '₹', name: 'INR', locale: 'en-IN' },
+  CAD: { symbol: 'C$', name: 'CAD', locale: 'en-CA' },
+  AUD: { symbol: 'A$', name: 'AUD', locale: 'en-AU' },
+  BRL: { symbol: 'R$', name: 'BRL', locale: 'pt-BR' },
+  MXN: { symbol: 'MX$', name: 'MXN', locale: 'es-MX' },
+  CHF: { symbol: 'Fr', name: 'CHF', locale: 'de-CH' },
+  KRW: { symbol: '₩', name: 'KRW', locale: 'ko-KR', decimals: 0 },
+  CNY: { symbol: '¥', name: 'CNY', locale: 'zh-CN' },
+  AED: { symbol: 'د.إ', name: 'AED', locale: 'ar-AE' },
+  NGN: { symbol: '₦', name: 'NGN', locale: 'en-NG' },
+  ZAR: { symbol: 'R', name: 'ZAR', locale: 'en-ZA' },
+};
+
+let currency = 'USD';
+let strategy = 'avalanche';
+let chartMode = 'balance';
+let chartInst = null;
+let nextId = 10;
+let debts = [
+  { id: 1, name: 'Credit card', balance: 4500, apr: 22.99, min: 90, color: '#ff4d6d' },
+  { id: 2, name: 'Car loan', balance: 8200, apr: 6.5, min: 160, color: '#378ADD' },
+  { id: 3, name: 'Student loan', balance: 15000, apr: 5.0, min: 200, color: '#9B72CF' },
+  { id: 4, name: 'Personal loan', balance: 3000, apr: 14.0, min: 70, color: '#ff6b35' },
+];
+const COLORS = ['#ff4d6d','#378ADD','#1D9E75','#ff6b35','#9B72CF','#EF9F27','#5DCAA5','#F0997B'];
+let extra = 200;
+let paidSoFar = 0;
+
+function fmt(n, short = false) {
+  const c = CURRENCIES[currency];
+  const dec = c.decimals !== undefined ? c.decimals : 2;
+  if (short && Math.abs(n) >= 1000) {
+    return c.symbol + (n / 1000).toFixed(1) + 'k';
+  }
+  return c.symbol + Math.round(n).toLocaleString(c.locale);
+}
+
+function setCurrency(val) {
+  currency = val;
+  update();
+}
+
+function setStrategy(s) {
+  strategy = s;
+  document.getElementById('btnAvalanche').classList.toggle('active', s === 'avalanche');
+  document.getElementById('btnSnowball').classList.toggle('active', s === 'snowball');
+  update();
+}
+
+function setExtra(val) {
+  extra = val;
+  document.getElementById('extraSlider').value = val;
+  document.getElementById('extraVal').textContent = fmt(val);
+  update();
+}
+
+function onExtraChange(val) {
+  extra = +val;
+  document.getElementById('extraVal').textContent = fmt(extra);
+  update();
+}
+
+function addDebt() {
+  const color = COLORS[debts.length % COLORS.length];
+  debts.push({ id: nextId++, name: 'New debt', balance: 1000, apr: 10, min: 25, color });
+  renderDebts();
+  update();
+}
+
+function removeDebt(id) {
+  if (debts.length <= 1) return;
+  debts = debts.filter(d => d.id !== id);
+  renderDebts();
+  update();
+}
+
+function updateDebt(id, key, val) {
+  const d = debts.find(x => x.id === id);
+  if (d) { d[key] = key === 'name' ? val : +val || 0; }
+  update();
+}
+
+function renderDebts() {
+  const c = CURRENCIES[currency];
+  document.getElementById('debtsList').innerHTML = debts.map((d, i) => `
+    <div class="debt-item" id="di-${d.id}">
+      <button class="del-debt" onclick="removeDebt(${d.id})">×</button>
+      <div class="debt-item-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:8px;height:8px;border-radius:50%;background:${d.color};flex-shrink:0"></div>
+          <input class="debt-name-input" value="${d.name}" onchange="updateDebt(${d.id},'name',this.value)" placeholder="Debt name">
+        </div>
+      </div>
+      <div class="debt-fields">
+        <div class="field-wrap">
+          <div class="field-label">Balance (${c.symbol})</div>
+          <input class="field-input" type="number" value="${d.balance}" min="0" oninput="updateDebt(${d.id},'balance',this.value)">
+        </div>
+        <div class="field-wrap">
+          <div class="field-label">APR (%)</div>
+          <input class="field-input" type="number" value="${d.apr}" min="0" max="100" step="0.1" oninput="updateDebt(${d.id},'apr',this.value)">
+        </div>
+        <div class="field-wrap" style="grid-column:span 2">
+          <div class="field-label">Min. monthly payment (${c.symbol})</div>
+          <input class="field-input" type="number" value="${d.min}" min="0" oninput="updateDebt(${d.id},'min',this.value)">
+        </div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('debtCountBadge').textContent = debts.length + ' item' + (debts.length !== 1 ? 's' : '');
+}
+
+function simulate(strat, extraAmt, customDebts = null) {
+  const src = customDebts || debts;
+  let state = src.map(d => ({ ...d, remaining: d.balance }));
+  let totalInterest = 0, months = 0;
+  const balHistory = [], intHistory = [], monthlyData = [];
+  const maxMonths = 600;
+  while (state.some(d => d.remaining > 0.01) && months < maxMonths) {
+    let pool = extraAmt;
+    let monthInterest = 0, monthPrincipal = 0;
+    state.forEach(d => {
+      if (d.remaining <= 0) return;
+      const interest = d.remaining * (d.apr / 100 / 12);
+      totalInterest += interest; monthInterest += interest;
+      d.remaining += interest;
+      const pay = Math.min(d.remaining, d.min);
+      monthPrincipal += pay - Math.min(pay, interest);
+      d.remaining -= pay;
+      pool -= pay;
+    });
+    if (pool < 0) pool = 0;
+    const active = state.filter(d => d.remaining > 0.01);
+    if (active.length > 0 && pool > 0) {
+      let target;
+      if (strat === 'avalanche') target = active.reduce((a, b) => b.apr > a.apr ? b : a);
+      else target = active.reduce((a, b) => b.remaining < a.remaining ? b : a);
+      const ep = Math.min(target.remaining, pool);
+      target.remaining -= ep;
+      monthPrincipal += ep;
+    }
+    months++;
+    const total = Math.max(0, state.reduce((s, d) => s + d.remaining, 0));
+    balHistory.push(Math.round(total));
+    intHistory.push(Math.round(totalInterest));
+    monthlyData.push({ interest: Math.round(monthInterest), principal: Math.round(monthPrincipal) });
+  }
+  return { months, totalInterest, balHistory, intHistory, monthlyData };
+}
+
+function simulatePayoffOrder() {
+  let state = debts.map(d => ({ ...d, remaining: d.balance }));
+  const minPay = debts.reduce((s, d) => s + d.min, 0);
+  const totalPay = minPay + extra;
+  let months = 0;
+  const order = [];
+  const paidOff = new Set();
+  while (state.some(d => d.remaining > 0.01) && months < 600) {
+    let pool = totalPay;
+    state.forEach(d => {
+      if (d.remaining <= 0) return;
+      d.remaining += d.remaining * (d.apr / 100 / 12);
+      const pay = Math.min(d.remaining, d.min);
+      d.remaining -= pay;
+      pool -= pay;
+    });
+    if (pool < 0) pool = 0;
+    const active = state.filter(d => d.remaining > 0.01);
+    if (active.length && pool > 0) {
+      const target = active.reduce((a, b) => b.apr > a.apr ? b : a);
+      target.remaining -= Math.min(target.remaining, pool);
+    }
+    months++;
+    state.forEach(d => {
+      if (d.remaining <= 0.01 && !paidOff.has(d.id)) {
+        paidOff.add(d.id);
+        const dt = new Date();
+        dt.setMonth(dt.getMonth() + months);
+        order.push({ ...d, paidMonth: months, date: dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) });
+      }
+    });
+  }
+  return order;
+}
+
+function switchChart(mode, btn) {
+  chartMode = mode;
+  document.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  update();
+}
+
+function toggleTheme() {
+  document.documentElement.classList.toggle('light');
+  const r = document.documentElement;
+  const isLight = document.documentElement.classList.contains('light');
+  r.style.setProperty('--bg', isLight ? '#f4f3ee' : '#0a0a0f');
+  r.style.setProperty('--surface', isLight ? '#fff' : '#111118');
+  r.style.setProperty('--surface2', isLight ? '#f0efe8' : '#1a1a24');
+  r.style.setProperty('--surface3', isLight ? '#e8e7e0' : '#22222f');
+  r.style.setProperty('--border', isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.07)');
+  r.style.setProperty('--border2', isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.13)');
+  r.style.setProperty('--text', isLight ? '#1a1a24' : '#f0efe8');
+  r.style.setProperty('--text2', isLight ? '#5a5a6a' : '#8a8a9a');
+  r.style.setProperty('--text3', isLight ? '#aaaaaa' : '#555566');
+  update();
+}
+
+function update() {
+  renderDebts();
+  const minPay = debts.reduce((s, d) => s + d.min, 0);
+  const totalPay = minPay + extra;
+  const avResult = simulate('avalanche', totalPay);
+  const snResult = simulate('snowball', totalPay);
+  const mainResult = strategy === 'avalanche' ? avResult : snResult;
+  const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
+  const totalInterestSaved = Math.max(0, snResult.totalInterest - avResult.totalInterest);
+
+  // Hero stats
+  document.getElementById('heroTotal').textContent = fmt(totalDebt);
+  document.getElementById('heroCount').textContent = debts.length;
+  document.getElementById('heroMonths').textContent = mainResult.months + ' mo';
+  const df = new Date(); df.setMonth(df.getMonth() + mainResult.months);
+  document.getElementById('heroDate').textContent = df.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  document.getElementById('heroInterest').textContent = fmt(mainResult.totalInterest);
+  document.getElementById('heroMonthly').textContent = fmt(totalPay);
+  const delta = document.getElementById('heroDelta');
+  if (totalInterestSaved > 0 && strategy === 'avalanche') {
+    delta.style.display = 'inline-block';
+    delta.textContent = fmt(totalInterestSaved) + ' saved vs snowball';
+    delta.className = 'stat-delta delta-good';
+  } else { delta.style.display = 'none'; }
+
+  // Progress ring
+  const paid = Math.max(0, paidSoFar);
+  const pctPaid = totalDebt > 0 ? Math.min(100, Math.round(paid / (totalDebt + paid) * 100)) : 0;
+  const circ = 351.86;
+  const offset = circ - (pctPaid / 100) * circ;
+  document.getElementById('ringFg').style.strokeDashoffset = offset;
+  document.getElementById('ringPct').textContent = pctPaid + '%';
+  document.getElementById('ringPaidLabel').textContent = fmt(paid) + ' paid';
+  document.getElementById('ringRemainingLabel').textContent = fmt(totalDebt) + ' remaining';
+
+  // Thermometer bars
+  const maxBal = Math.max(...debts.map(d => d.balance));
+  document.getElementById('thermoList').innerHTML = debts.map(d => `
+    <div class="thermo-item" style="margin-bottom:10px">
+      <span class="thermo-name">${d.name}</span>
+      <div class="thermo-track">
+        <div class="thermo-fill" style="width:${Math.round(d.balance/maxBal*100)}%;background:${d.color}"></div>
+      </div>
+      <span class="thermo-pct">${Math.round(d.balance/totalDebt*100)}%</span>
+    </div>
+  `).join('');
+
+  // What if
+  const avDouble = simulate('avalanche', minPay + extra * 2);
+  document.getElementById('wi2x').textContent = Math.max(0, avResult.months - avDouble.months);
+
+  const refiDebts = debts.map(d => ({ ...d, apr: Math.min(d.apr, 5.0) }));
+  const avRefi = simulate('avalanche', totalPay, refiDebts);
+  document.getElementById('wiRefi').textContent = fmt(Math.max(0, avResult.totalInterest - avRefi.totalInterest), true);
+
+  const skipPay = simulate('avalanche', minPay + extra);
+  const extraInterest = skipPay.totalInterest;
+  const noSkipInterest = avResult.totalInterest;
+  document.getElementById('wiSkip').textContent = '+' + fmt(Math.max(0, extraInterest - noSkipInterest + totalDebt * 0.015), true);
+
+  const needed = Math.ceil(totalDebt / 12 + totalDebt * (debts.reduce((s,d)=>s+d.apr,0)/debts.length/100/12));
+  document.getElementById('wi12').textContent = fmt(needed, true);
+
+  // Payoff timeline
+  const order = simulatePayoffOrder();
+  document.getElementById('timelineList').innerHTML = order.length ? order.map((d, i) => `
+    <div class="timeline-item">
+      <div class="timeline-dot" style="background:${d.color}"></div>
+      <div>
+        <div class="timeline-name">${d.name}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${fmt(d.balance)} original</div>
+      </div>
+      <div style="text-align:right">
+        <div class="timeline-date">${d.date}</div>
+        <div class="timeline-amount">mo. ${d.paidMonth}</div>
+      </div>
+    </div>
+  `).join('') : '<div style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Add debts to see timeline</div>';
+
+  // Chart
+  const len = Math.max(avResult.balHistory.length, snResult.balHistory.length);
+  const labels = Array.from({ length: len }, (_, i) => {
+    if (i === 0) return 'Now';
+    if (i % 12 === 0) return 'Yr ' + (i / 12 | 0);
+    return '';
+  });
+  const pad = (arr, l, last) => [...arr, ...Array(l - arr.length).fill(last !== undefined ? last : arr[arr.length - 1] || 0)];
+  const avBal = pad(avResult.balHistory, len, 0);
+  const snBal = pad(snResult.balHistory, len, 0);
+  const avInt = pad(avResult.intHistory, len);
+  const snInt = pad(snResult.intHistory, len);
+
+  let datasets;
+  if (chartMode === 'balance') {
+    datasets = [
+      { label: 'Avalanche', data: [totalDebt, ...avBal], borderColor: '#378ADD', backgroundColor: 'rgba(55,138,221,0.07)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3, borderDash: [] },
+      { label: 'Snowball', data: [totalDebt, ...snBal], borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.05)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3, borderDash: [6, 3] },
+    ];
+  } else if (chartMode === 'interest') {
+    datasets = [
+      { label: 'Avalanche', data: [0, ...avInt], borderColor: '#378ADD', backgroundColor: 'rgba(55,138,221,0.07)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3 },
+      { label: 'Snowball', data: [0, ...snInt], borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.05)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3, borderDash: [6, 3] },
+    ];
+  } else {
+    const slice = avResult.monthlyData.slice(0, Math.min(24, avResult.monthlyData.length));
+    const mLabels = slice.map((_, i) => 'Mo ' + (i + 1));
+    if (chartInst) chartInst.destroy();
+    chartInst = new Chart(document.getElementById('mainChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: mLabels,
+        datasets: [
+          { label: 'Principal', data: slice.map(m => m.principal), backgroundColor: 'rgba(55,138,221,0.7)', borderRadius: 3 },
+          { label: 'Interest', data: slice.map(m => m.interest), backgroundColor: 'rgba(255,77,109,0.7)', borderRadius: 3 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: i => i.dataset.label + ': ' + fmt(i.parsed.y) } } },
+        scales: {
+          x: { stacked: true, ticks: { color: '#888780', font: { size: 11 } }, grid: { display: false } },
+          y: { stacked: true, ticks: { color: '#888780', font: { size: 11 }, callback: v => fmt(v, true) }, grid: { color: 'rgba(136,135,128,0.1)' } }
+        }
+      }
+    });
+    return;
+  }
+
+  const allLabels = ['Now', ...labels];
+  if (chartInst) chartInst.destroy();
+  chartInst = new Chart(document.getElementById('mainChart').getContext('2d'), {
+    type: 'line',
+    data: { labels: allLabels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: i => i.dataset.label + ': ' + fmt(i.parsed.y) } }
+      },
+      scales: {
+        x: { ticks: { color: '#888780', font: { size: 11 }, maxRotation: 0, autoSkip: false, callback: (v, i) => allLabels[i] }, grid: { display: false } },
+        y: { ticks: { color: '#888780', font: { size: 11 }, callback: v => fmt(v, true) }, grid: { color: 'rgba(136,135,128,0.1)' } }
+      }
+    }
+  });
+}
+
+// INIT
+renderDebts();
+update();
+</script>
+
+  <!-- FAQ SECTION -->
+  <div style="margin-top:64px;padding-top:48px;border-top:1px solid var(--border)">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:24px">Frequently asked questions</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px">
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">What's the difference between Avalanche and Snowball?</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65">Avalanche pays the highest-interest debt first — minimizing total interest paid. Snowball pays the smallest balance first — delivering faster "wins" to keep you motivated. Avalanche almost always saves more money; Snowball is better if you need encouragement.</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px">
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Is my data saved anywhere?</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65">No. DebtZero runs entirely in your browser. Nothing is sent to any server, no cookies are set, no account is created. Your financial data never leaves your device. Refresh the page and it resets.</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px">
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">How accurate are the calculations?</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65">DebtZero uses standard simple-interest monthly compounding (APR ÷ 12). Real lenders may use daily compounding or other methods, so treat results as a close estimate — not a lender quote. Consult your actual statements for exact figures.</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px">
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">What does "What if?" show me?</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65">Four instant scenarios: doubling your extra payment, refinancing all debts to 5% APR, skipping one month's extra payment, and what monthly payment you'd need to clear everything in exactly 12 months.</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px">
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Which currency should I use?</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65">Select your local currency from the dropdown — it changes number formatting and the currency symbol throughout. The calculations themselves are currency-agnostic; only the display changes.</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 22px">
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">Can I share my results?</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.65">You can take a screenshot or export the page. Because there's no server, there's no shareable URL with your data embedded — that's intentional, to protect your privacy.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer style="margin-top:64px;padding:32px 0 40px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+    <div>
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:6px">
+        <span style="font-family:var(--font-display);font-size:20px;color:var(--text)">DebtZero</span>
+        <div style="width:6px;height:6px;background:var(--accent);border-radius:50%"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text3)">Free forever. No account. No ads. Open source.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text3)">Built with pure HTML, CSS & JS</span>
+      <span style="font-size:12px;color:var(--text3)">Chart.js + Google Fonts</span>
+      <span style="font-size:12px;color:var(--text3)">© 2026 DebtZero</span>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
